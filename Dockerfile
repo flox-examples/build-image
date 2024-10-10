@@ -264,15 +264,6 @@ RUN curl -sSL https://rvm.io/mpapis.asc | gpg --import - && curl -sSL https://rv
 
 ENV PATH /usr/local/rvm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Match this set latest Stable releases we can support on https://www.ruby-lang.org/en/downloads/
-ENV RUBY_VERSION=2.7.2
-ENV RUBY_2_6_VERSION=2.6.6
-# Also preinstall Ruby 2.6, as many customers are pinned to it and installing is slow
-RUN /bin/bash -c "source ~/.rvm/scripts/rvm && \
-                  rvm install $RUBY_2_6_VERSION && rvm use $RUBY_2_6_VERSION && gem install bundler && \
-                  rvm install $RUBY_VERSION && rvm use $RUBY_VERSION && gem install bundler && \
-                  rvm use $RUBY_VERSION --default && rvm cleanup all"
-
 ENV PATH /usr/local/rvm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 USER root
 
@@ -572,7 +563,18 @@ RUN cd /opt/buildhome/test-env && . ~/.nvm/nvm.sh && npm ci --legacy-peer-deps &
 COPY --chown=buildbot:buildbot tests /opt/buildhome/test-env/tests
 WORKDIR /opt/buildhome/test-env
 
+USER root
+RUN wget https://flox.dev//downloads/debian-archive/flox.x86_64-linux.deb
+RUN apt-get -y update && \
+    apt-get install -y sudo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    apt-get autoremove -y
+RUN dpkg -i flox.x86_64-linux.deb || cat /tmp/flox-installation.log.*
+RUN chown -R buildbot /nix
+USER buildbot
+ENTRYPOINT ["/bin/bash"]
 # Set `bats` as entrypoint
-ENTRYPOINT ["node_modules/.bin/bats"]
+#ENTRYPOINT ["node_modules/.bin/bats"]
 # Set the default flags for `bats`
-CMD ["--recursive", "--timing", "--formatter", "tap", "--report-formatter", "junit", "tests"]
+#CMD ["--recursive", "--timing", "--formatter", "tap", "--report-formatter", "junit", "tests"]
